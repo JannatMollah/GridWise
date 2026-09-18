@@ -194,8 +194,7 @@ As required by the **BUP CSE Fest 2026 Evaluation Rubric (Item 4 & Rubric Sectio
 
 | Specification | Value |
 |---|---|
-| **Registry Reference** | `ghcr.io/md-sohan-bhuyan/bup_preli:latest` |
-| **Alternative Docker Hub** | `docker.io/mdsohanbhuyan/gridwise-llm:latest` |
+| **Registry Reference** | `ghcr.io/jannatmollah/gridwise:latest` |
 | **Exposed Port** | `8000` (binds to `0.0.0.0`) |
 | **Base Image** | `node:20-alpine` (~130 MB minimal footprint) |
 | **Security User** | `node` (non-root UID 1000) |
@@ -217,7 +216,7 @@ As required by the **BUP CSE Fest 2026 Evaluation Rubric (Item 4 & Rubric Sectio
 
 #### Step 1: Pull the image from registry
 ```bash
-docker pull ghcr.io/md-sohan-bhuyan/bup_preli:latest
+docker pull ghcr.io/jannatmollah/gridwise:latest
 ```
 
 #### Step 2: Run container with your API key
@@ -227,7 +226,7 @@ docker run -d \
   -p 8000:8000 \
   -e GEMINI_API_KEY="<your-gemini-api-key>" \
   -e PORT=8000 \
-  ghcr.io/md-sohan-bhuyan/bup_preli:latest
+  ghcr.io/jannatmollah/gridwise:latest
 ```
 
 #### Step 3: Verify readiness (/health)
