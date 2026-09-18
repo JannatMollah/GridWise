@@ -2,13 +2,12 @@ name: Build and Publish Docker Fallback Image
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "master" ]
     tags: [ 'v*.*.*' ]
   workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   build-and-push:
@@ -21,43 +20,43 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to the Container registry
+      - name: Log in to the GitHub Container Registry
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=raw,value=latest
-            type=sha,format=short
-
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./Dockerfile
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Verify image in container
+      - name: Set lowercase image name
         run: |
-          # Test run the newly built image in background
-          IMAGE_TAG="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
-          echo "Testing pull and run for: $IMAGE_TAG"
-          docker run -d --name test-gridwise -p 8000:8000 $IMAGE_TAG
-          sleep 3
-          curl -s http://localhost:8000/health | grep '"status":"ok"' || exit 1
-          echo "Health check passed on container image!"
+          # Docker tags strictly require lowercase characters
+          LOWER_REPO=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          echo "IMAGE_NAME=${LOWER_REPO}" >> $GITHUB_ENV
+          echo "FULL_IMAGE=${{ env.REGISTRY }}/${LOWER_REPO}" >> $GITHUB_ENV
+
+      - name: Build Docker image
+        run: |
+          echo "Building image for: ${{ env.FULL_IMAGE }}:latest"
+          docker build \
+            -t ${{ env.FULL_IMAGE }}:latest \
+            -t ${{ env.FULL_IMAGE }}:${{ github.sha }} \
+            .
+
+      - name: Verify image in container (/health check)
+        run: |
+          echo "Testing newly built container image..."
+          docker run -d --name test-gridwise -p 8000:8000 ${{ env.FULL_IMAGE }}:latest
+          sleep 4
+          # Verify health endpoint returns status ok
+          HEALTH_RES=$(curl -s http://localhost:8000/health)
+          echo "Response from /health: $HEALTH_RES"
+          echo "$HEALTH_RES" | grep '"status":"ok"' || (docker logs test-gridwise && exit 1)
+          echo "Health check passed successfully!"
           docker rm -f test-gridwise
+
+      - name: Push Docker image to GHCR
+        run: |
+          echo "Pushing images to registry..."
+          docker push ${{ env.FULL_IMAGE }}:latest
+          docker push ${{ env.FULL_IMAGE }}:${{ github.sha }}
+          echo "Successfully published ${{ env.FULL_IMAGE }}:latest"
