@@ -20,43 +20,51 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Log in to the GitHub Container Registry
+      - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set lowercase image name
+      - name: Build, Test, and Push Docker Image
         run: |
-          # Docker tags strictly require lowercase characters
+          set -e
+          # Convert repository name to lowercase (required by Docker specifications)
           LOWER_REPO=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
-          echo "IMAGE_NAME=${LOWER_REPO}" >> $GITHUB_ENV
-          echo "FULL_IMAGE=${{ env.REGISTRY }}/${LOWER_REPO}" >> $GITHUB_ENV
+          FULL_IMAGE="${{ env.REGISTRY }}/${LOWER_REPO}"
 
-      - name: Build Docker image
-        run: |
-          echo "Building image for: ${{ env.FULL_IMAGE }}:latest"
+          echo "===================================================="
+          echo "Target Image: ${FULL_IMAGE}:latest"
+          echo "===================================================="
+
+          echo "==> Step 1: Building Docker image..."
           docker build \
-            -t ${{ env.FULL_IMAGE }}:latest \
-            -t ${{ env.FULL_IMAGE }}:${{ github.sha }} \
+            -t "${FULL_IMAGE}:latest" \
+            -t "${FULL_IMAGE}:${{ github.sha }}" \
             .
 
-      - name: Verify image in container (/health check)
-        run: |
-          echo "Testing newly built container image..."
-          docker run -d --name test-gridwise -p 8000:8000 ${{ env.FULL_IMAGE }}:latest
-          sleep 4
-          # Verify health endpoint returns status ok
+          echo "==> Step 2: Testing container healthcheck locally..."
+          docker run -d --name test-gridwise -p 8000:8000 "${FULL_IMAGE}:latest"
+          sleep 5
+
           HEALTH_RES=$(curl -s http://localhost:8000/health)
-          echo "Response from /health: $HEALTH_RES"
-          echo "$HEALTH_RES" | grep '"status":"ok"' || (docker logs test-gridwise && exit 1)
-          echo "Health check passed successfully!"
+          echo "Response from /health: ${HEALTH_RES}"
+
+          if echo "${HEALTH_RES}" | grep -q '"status":"ok"'; then
+            echo "Health check verification passed!"
+          else
+            echo "Health check failed! Container logs:"
+            docker logs test-gridwise
+            exit 1
+          fi
+
           docker rm -f test-gridwise
 
-      - name: Push Docker image to GHCR
-        run: |
-          echo "Pushing images to registry..."
-          docker push ${{ env.FULL_IMAGE }}:latest
-          docker push ${{ env.FULL_IMAGE }}:${{ github.sha }}
-          echo "Successfully published ${{ env.FULL_IMAGE }}:latest"
+          echo "==> Step 3: Pushing verified image to GHCR..."
+          docker push "${FULL_IMAGE}:latest"
+          docker push "${FULL_IMAGE}:${{ github.sha }}"
+
+          echo "===================================================="
+          echo "SUCCESS: Image published to ${FULL_IMAGE}:latest"
+          echo "===================================================="
