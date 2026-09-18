@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: gridwise-llm
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node src/index.js
+    envVars:
+      - key: PORT
+        value: 8000
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-3.5-flash
+      - key: LLM_PROVIDER
+        value: gemini
+    healthCheckPath: /health

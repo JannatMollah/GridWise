@@ -1,0 +1,28 @@
+{
+  "name": "gridwise-llm",
+  "version": "1.0.0",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "test": "node tests/sampleCases.test.js",
+    "test:unit": "node tests/comprehensive.test.js",
+    "test:edge": "node tests/edgeCases.test.js",
+    "test:all": "node tests/comprehensive.test.js && node tests/edgeCases.test.js",
+    "docker:build": "docker build -t gridwise-llm .",
+    "docker:run": "docker run -p 8000:8000 --env-file .env gridwise-llm",
+    "docker:compose": "docker compose up --build"
+  },
+  "keywords": ["energy", "optimization", "llm", "gridwise"],
+  "author": "Team GridWise",
+  "license": "ISC",
+  "description": "LLM-assisted smart campus energy optimization service for BUP CSE Fest 2026",
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.0",
+    "express": "^5.2.1",
+    "javascript-lp-solver": "^1.0.3",
+    "zod": "^4.6.5"
+  }
+}
